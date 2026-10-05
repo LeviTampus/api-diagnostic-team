@@ -4,17 +4,19 @@ A multi-agent API-troubleshooting team built low-code in n8n. Paste a URL, an
 error, or a failing response — the team probes it, diagnoses the auth failure,
 and returns a likely cause with next steps.
 
-> **Demo:** _[live chat link once deployed]_ · **Eval:** 12/12 scenarios
+> **Eval:** 12/12 scenarios · **Status:** built and tested locally (hosted demo in progress)
 
 ![A chat session where the team diagnoses a seeded API failure and returns a likely cause with next steps.](assets/demo.gif)
 
 ## The problem
 
-_[Edit this — your framing.]_ First-line API triage is manual: check the status
-code, read the headers, guess whether it's auth vs upstream vs a timeout, then
-write it up. Support engineers do this dozens of times a day. This project asks:
-what if a small team of specialists did the first pass — grounded in runbooks,
-with a trace you can inspect?
+First-line API triage is manual work I did every day in support: read the status
+code, check the headers, work out whether it's auth vs upstream vs a timeout,
+then write it up clearly. It's the same handful of steps, dozens of times a day.
+
+This project asks how much of that first pass a small team of agents can take on
+— grounded in runbooks, and with a trace you can inspect when it gets something
+wrong.
 
 ## Architecture
 
@@ -83,11 +85,12 @@ timeout, redirect loop) plus paste-mode cases.
 
 ## Deployment
 
-_[Status: built and tested locally; hosted deployment is in progress.]_ The
-intended target is a self-hosted n8n instance (free web service + Supabase
-Postgres) with the editor owner-locked and the Chat Trigger public. The
-free-tier RAM ceiling above is the open constraint; options considered were a
-paid instance tier, a managed n8n host, or a small always-on VPS.
+Built and tested locally; the hosted demo is in progress. The intended target is
+a self-hosted n8n instance (free web service + Supabase Postgres) with the editor
+owner-locked and the Chat Trigger public. The free-tier RAM ceiling above is the
+open constraint — the options are a paid instance tier, a managed n8n host, or a
+small always-on VPS. Documented rather than hidden: knowing where the free tier
+breaks is part of the work.
 
 ## Repo layout
 

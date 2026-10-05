@@ -1,0 +1,183 @@
+{
+  "name": "Agent: Root Cause",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "findings"
+            },
+            {
+              "name": "session_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d3f825b0-ed75-40a4-9034-5596ea808f0b",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.findings }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the root-cause analyst. Given findings from other specialists,\nsynthesize the most likely root cause. Prefer the simplest explanation that\nfits ALL the evidence. Distinguish client (4xx) vs server (5xx) vs auth vs\nnetwork. Set confidence low when evidence is thin or contradictory. Never\ninvent causes the evidence doesn't support."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        192,
+        -16
+      ],
+      "id": "a7713bd9-6b01-4bef-b4f7-904a5f302742",
+      "name": "AI Agent",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{ \"likely_cause\": \"string\", \"confidence\": \"number\", \"evidence\": \"string\", \"next_steps\": \"string\" }"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        400,
+        208
+      ],
+      "id": "24277d70-69c7-4caa-be90-f898b5c26bde",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3.8-27b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        80,
+        208
+      ],
+      "id": "9a25f0f4-a991-4a59-b3e9-dbe0817cf34a",
+      "name": "Groq Chat Model"
+    },
+    {
+      "parameters": {
+        "description": "Search the root-cause knowledge base of heuristics for correlating\nspecialist findings. Use it to ground your synthesis.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "cachedResultName": "KB Search"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "query": "={{ $fromAI('query', 'What to look up in the root-cause knowledge base') }}",
+            "agent": "root-cause"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "agent",
+              "displayName": "agent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        208
+      ],
+      "id": "5e26d1f9-15ba-4fbf-be63-b4667c5ad070",
+      "name": "Call 'KB Search'"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'KB Search'": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "2efb94b2-d85c-4753-a51a-e4b214c6d56a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2d26b3d66e7d6bde81990079705d3736796147115f4a532bf10f225d707ea3bd"
+  },
+  "nodeGroups": [],
+  "id": "G2CjBppT2b9eYoab",
+  "tags": []
+}

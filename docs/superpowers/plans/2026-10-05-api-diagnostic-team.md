@@ -70,12 +70,37 @@ session memory, audit, and vectors. LangSmith traces every run.
 create extension if not exists vector;
 create table if not exists kb_chunks (
   id uuid primary key default gen_random_uuid(),
-  agent text not null,
   content text,
-  metadata jsonb,
-  embedding vector(768)
+  metadata jsonb,   -- the agent tag lives here: metadata->>'agent'
+  embedding vector(3072)
 );
 ```
+Note: the Supabase Vector Store node writes `content` + `metadata` (jsonb) +
+`embedding` only. The per-agent tag goes in `metadata.agent`, so retrieval
+filters on `metadata->>'agent'` — there is no top-level `agent` column.
+- [ ] Create the **`match_documents`** function (required by the vector store's
+      Get Many / Retrieve modes):
+```sql
+create or replace function match_documents (
+  query_embedding vector,
+  match_count int default null,
+  filter jsonb default '{}'
+)
+returns table (id uuid, content text, metadata jsonb, similarity float)
+language plpgsql as $$
+begin
+  return query
+  select kb_chunks.id, kb_chunks.content, kb_chunks.metadata,
+         1 - (kb_chunks.embedding <=> query_embedding) as similarity
+  from kb_chunks
+  where kb_chunks.metadata @> filter
+  order by kb_chunks.embedding <=> query_embedding
+  limit match_count;
+end;
+$$;
+```
+The `metadata @> filter` is how the per-agent filter works (pass
+`{"agent":"http-diagnostic"}`).
 - [ ] Create the **audit** table:
 ```sql
 create table if not exists diagnostic_audit (
@@ -251,18 +276,41 @@ for or handle credentials/secrets.
 **Where:** repo `knowledge-base/` + n8n workflow `KB Indexer`.
 **Produces:** one embedded KB per agent, public in the repo.
 
-- [ ] Create `knowledge-base/http-diagnostic.md`, `authentication.md`,
-      `root-cause.md` (and later the others). Each: failure modes → signals →
-      likely cause → fix. Keep short.
-- [ ] New n8n workflow `KB Indexer` (manual/scheduled): read the markdown files
-      (HTTP Request from the raw GitHub URLs, or manual paste) → **Recursive
-      Character Text Splitter (800/100)** → **Gemini embeddings** → **Supabase
-      Vector Store** (insert) into `kb_chunks`, with metadata `agent`.
-- [ ] Clear-before-insert (Delete rows where `agent = ...`) to avoid duplicates.
-- [ ] In each specialist workflow, add a **Vector Store Retriever tool** over
-      `kb_chunks` filtered by its `agent` metadata; attach to that agent.
-- [ ] **Verify:** run the indexer → `kb_chunks` has rows per agent → a specialist
-      returns a KB-grounded answer.
+**KB files** (done): `knowledge-base/http-diagnostic.md`, `authentication.md`,
+`root-cause.md` — failure modes → signals → likely cause → fix.
+
+**KB Indexer workflow** (done):
+- [ ] Trigger → **Code `KB Sources`** (returns `{agent, url}` per KB) →
+      **HTTP Request** (GET url, Response Format = Text) →
+      **Code `Docs`** (`agent` from KB Sources, `content` = body) →
+      **Supabase Vector Store (Insert)** `kb_chunks` with:
+  - **Default Data Loader**: Type JSON, Mode Load Specific Data,
+    Data = `{{ $json.content }}`, **Options → Metadata `agent` = `{{ $json.agent }}`**,
+    Text Splitting Custom → Recursive (800/100)
+  - **Gemini embeddings** (`gemini-embedding-001`)
+- [ ] **Clear first** (manual for now): `delete from kb_chunks;` before indexing.
+- [ ] **Verify:** `select metadata->>'agent', count(*) from kb_chunks group by 1;`
+      → three agents.
+
+**Attach retrievers** — via a sub-workflow tool (NOT "Retrieve as Tool"):
+- [ ] Why: the vector store's **"Retrieve as Tool"** mode throws the known
+      `Expected object, received string` schema bug (same as Case Triage). So we
+      use the same workaround — a small `KB Search` sub-workflow.
+- [ ] New workflow `KB Search`:
+  - **Execute Sub-workflow Trigger** inputs: `query` (string), `agent` (string).
+  - **Supabase Vector Store** → Operation Mode = **Get Many** (main-flow search):
+    Query = `{{ $json.query }}`, Limit = 4, Table `kb_chunks`,
+    Query Name `match_documents`, Embeddings = Gemini,
+    **Options → Metadata Filter** → `agent` = `{{ $json.agent }}` ✅ (confirmed
+    working — this restricts results to the requested agent).
+  - Returns the ranked passages.
+- [ ] In each specialist workflow, attach a **Call n8n Workflow Tool** →
+      `KB Search` to the agent's Tool slot:
+  - `query` = `{{ $fromAI('query', 'What to look up in this agent\'s KB') }}`
+  - `agent` = the agent's own tag (fixed): `http-diagnostic` / `authentication`
+    / `root-cause`.
+- [ ] **Verify:** run `KB Search` with `query = "502 bad gateway"`,
+      `agent = http-diagnostic` → returns only HTTP-KB passages.
 
 ## Task 10: Root-Cause agent + structured output
 

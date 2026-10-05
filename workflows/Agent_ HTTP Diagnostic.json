@@ -1,0 +1,211 @@
+{
+  "name": "Agent: HTTP Diagnostic",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "target"
+            },
+            {
+              "name": "session_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a1b64532-5c09-4410-b926-5b4259355787",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.target }}",
+        "options": {
+          "systemMessage": "You are the HTTP diagnostic specialist. Use the http_request tool to probe the\ntarget — decide the URL yourself. Only fetch public http(s) URLs; NEVER private\naddresses, localhost, or raw IP literals. Report status, redirects, content-type,\nlatency, and any anomaly (5xx, wrong content-type, redirect loop, timeout).\nState the most likely issue. No fluff.",
+          "tracingMetadata": {
+            "values": [
+              {
+                "key": "thread_id",
+                "stringValue": "={{ $json.session_id }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "a331c060-2300-4be8-ad8b-f8a3c8dec411",
+      "name": "AI Agent",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3.8-27b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        96,
+        208
+      ],
+      "id": "3734437c-fbbc-4958-901b-e009b9877a96",
+      "name": "Groq Chat Model"
+    },
+    {
+      "parameters": {
+        "url": "={{ $fromAI('url', 'The public URL to fetch') }}",
+        "options": {
+          "redirect": {
+            "redirect": {
+              "maxRedirects": 3
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        288,
+        256
+      ],
+      "id": "8a026b9b-7a26-41ec-aa41-405091abc177",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "description": "Search the HTTP knowledge base of failure modes and fixes.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "cachedResultName": "KB Search"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "query": "={{ $fromAI('query', 'What to look up in the HTTP knowledge base') }}",
+            "agent": "http-diagnostic"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "agent",
+              "displayName": "agent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        240
+      ],
+      "id": "cea3843d-7462-4df3-a8b6-2521f7e8bbba",
+      "name": "KB Search"
+    }
+  ],
+  "pinData": {
+    "When Executed by Another Workflow": [
+      {
+        "json": {
+          "target": "why would an API return a 502?"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KB Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ee1cdcf0-d2d4-4907-874f-797dab82aee9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2d26b3d66e7d6bde81990079705d3736796147115f4a532bf10f225d707ea3bd"
+  },
+  "nodeGroups": [],
+  "id": "lmY4YMgOKbPgWyT5",
+  "tags": []
+}

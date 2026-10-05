@@ -1,0 +1,390 @@
+{
+  "name": "Orchestrator — API Diagnostic Team",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "options": {
+          "inputPlaceholder": "Paste a URL, error, or logs….",
+          "subtitle": "demo",
+          "title": "AI API Diagnostic Team"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        0
+      ],
+      "id": "69e529a2-9286-441d-8fa2-f126dd9f2a94",
+      "name": "New Message"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are the coordinator of an API diagnostic team. Chat naturally. If the user\nis just talking, answer directly. If they give a URL, error, or logs, decide\nwhich specialists to involve and ask ONE clarifying question if needed.\n\nYour team:\n- HTTP Diagnostic — probes a public URL (status, redirects, headers, latency,\n  TLS). Use it when the user gives a URL or reports a connectivity/response issue.\n- Authentication — diagnoses auth failures (401/403/407) from pasted evidence.\n  Use it when the issue is auth-related. Never ask for credentials; ask the user\n  to paste the failing response (status, headers, error body) and pass that to\n  the Authentication agent.\n- Root Cause — synthesizes the other agents' findings into a likely cause,\n  a confidence score, and next steps. Use it after the relevant specialists\n  (HTTP / Authentication) have reported, before giving the final answer.\n\nAlways end diagnostic replies with: what was checked, the likely cause, and\nnext steps. Never invent facts.",
+          "tracingMetadata": {
+            "values": [
+              {
+                "key": "thread_id",
+                "stringValue": "=thread_id = {{ $json.sessionId }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "4d4f4762-5965-40f7-8276-45e34734aedd",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        96,
+        208
+      ],
+      "id": "34ef7ad9-bcf6-404d-a774-7f5e4f9d6575",
+      "name": "Groq Chat Model"
+    },
+    {
+      "parameters": {
+        "tableName": "n8n_chat_memory",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.4,
+      "position": [
+        240,
+        208
+      ],
+      "id": "d3aabe0b-82e0-416b-9dda-63b03889bb2a",
+      "name": "Postgres Chat Memory"
+    },
+    {
+      "parameters": {
+        "description": "HTTP specialist: probes a public URL and reports anomalies.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "cachedResultName": "Agent: HTTP Diagnostic"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "target": "={{ $fromAI('target', 'What to inspect: the URL or endpoint') }}",
+            "session_id": "={{ $json.sessionId }}"
+          },
+          "matchingColumns": [
+            "target"
+          ],
+          "schema": [
+            {
+              "id": "target",
+              "displayName": "target",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        432,
+        272
+      ],
+      "id": "4842118b-3cf4-4804-9b4d-d9e9813ac5e7",
+      "name": "Agent: HTTP Diagnostic"
+    },
+    {
+      "parameters": {
+        "description": "Diagnose authentication failures from pasted evidence (status, headers, error body, curl).",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "cachedResultName": "Agent: Authentication"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "evidence": "={{ $fromAI('evidence', 'The failing response, status, headers, error, or curl to analyze') }}",
+            "session_id": "={{ $json.sessionId }}"
+          },
+          "matchingColumns": [
+            "evidence"
+          ],
+          "schema": [
+            {
+              "id": "evidence",
+              "displayName": "evidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        256
+      ],
+      "id": "879f9ad6-2354-4b37-949d-a6db70be102c",
+      "name": "Agent: Authentication"
+    },
+    {
+      "parameters": {
+        "description": "Synthesize specialist findings into a likely root cause + confidence + next steps.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "cachedResultName": "Agent: Root Cause"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "findings": "={{ $fromAI('findings', 'The collected findings from the other agents to synthesize') }}",
+            "session_id": "={{ $json.sessionId }}"
+          },
+          "matchingColumns": [
+            "findings"
+          ],
+          "schema": [
+            {
+              "id": "findings",
+              "displayName": "findings",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        768,
+        192
+      ],
+      "id": "717b379d-fb7e-4c50-8200-aa33c901a37d",
+      "name": "Agent: Root Cause"
+    },
+    {
+      "parameters": {
+        "tableId": "diagnostic_audit",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "session_id",
+              "fieldValue": "={{ $('New Message').item.json.sessionId }}"
+            },
+            {
+              "fieldId": "request",
+              "fieldValue": "={{ $('New Message').item.json.chatInput }}"
+            },
+            {
+              "fieldId": "verdict",
+              "fieldValue": "={{ $json.output }}"
+            },
+            {
+              "fieldId": "agents_used",
+              "fieldValue": "=team"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        592,
+        0
+      ],
+      "id": "3f4a78af-1aab-46b4-b340-e7fd56834bdb",
+      "name": "Create a row"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "af6ccea8-96dc-41d8-a944-a83424fa9267",
+              "name": "output",
+              "value": "={{ $('AI Agent').item.json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        816,
+        0
+      ],
+      "id": "ddbf508f-56ad-404a-9990-c3026eeb1da3",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "New Message": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent: HTTP Diagnostic": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent: Authentication": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent: Root Cause": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "43eba20e-973d-4b01-b546-3074cee32633",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2d26b3d66e7d6bde81990079705d3736796147115f4a532bf10f225d707ea3bd"
+  },
+  "nodeGroups": [],
+  "id": "KIQaFqd3pccokZ6A",
+  "tags": []
+}

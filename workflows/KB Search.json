@@ -1,0 +1,116 @@
+{
+  "name": "KB Search",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "query"
+            },
+            {
+              "name": "agent"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -544,
+        0
+      ],
+      "id": "be0d17d2-bdc1-4a93-87da-fd803aba1c44",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "tableName": {
+          "__rl": true,
+          "value": "kb_chunks",
+          "mode": "list",
+          "cachedResultName": "kb_chunks"
+        },
+        "prompt": "={{ $json.query }}",
+        "options": {
+          "queryName": "match_documents",
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "agent",
+                "value": "={{ $json.agent }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        -320,
+        0
+      ],
+      "id": "9ca4a24a-faa4-4076-b217-00f3dfcf3b8d",
+      "name": "Supabase Vector Store"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        208
+      ],
+      "id": "2ce08624-b9ff-4075-8bcd-ecf913bfd760",
+      "name": "Embeddings Google Gemini"
+    }
+  ],
+  "pinData": {
+    "When Executed by Another Workflow": [
+      {
+        "json": {
+          "query": "502 bad gateway",
+          "agent": "http-diagnostic"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "068cf41b-21c9-4517-97b1-15211c862f91",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2d26b3d66e7d6bde81990079705d3736796147115f4a532bf10f225d707ea3bd"
+  },
+  "nodeGroups": [],
+  "id": "vvGYlZ9XMiFGUL7C",
+  "tags": []
+}

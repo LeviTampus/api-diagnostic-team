@@ -1,0 +1,156 @@
+{
+  "name": "Agent: Authentication",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "evidence"
+            },
+            {
+              "name": "session_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "43caf4d0-a29b-4a0e-9e69-989595e5aa56",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.evidence }}",
+        "options": {
+          "systemMessage": "You are an authentication diagnostic specialist. You analyze pasted evidence\nonly — a failing HTTP response, its status, www-authenticate header, error body,\nor the curl the user ran. Diagnose: 401 vs 403 vs 407, missing vs expired vs\nwrong-scope token, wrong scheme. State the likely cause and the fix. NEVER ask\nfor or handle credentials/secrets."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "f62d583e-d5c4-4163-b33e-051128bd0010",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3.8-27b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        96,
+        208
+      ],
+      "id": "7b8687c3-c91c-4dc4-8bcc-5f2e00db2c8e",
+      "name": "Groq Chat Model"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "cachedResultName": "KB Search"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "agent": "authentication",
+            "query": "={{ $fromAI('query', 'What to look up in the authentication knowledge base') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "agent",
+              "displayName": "agent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        208
+      ],
+      "id": "8d5f5976-4053-4d48-ae00-f1b8707601b9",
+      "name": "KB Search"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KB Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "9c37b047-cedc-4436-b0c3-2c34da5b6fc8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2d26b3d66e7d6bde81990079705d3736796147115f4a532bf10f225d707ea3bd"
+  },
+  "nodeGroups": [],
+  "id": "bmvEldNlgx5vQIGx",
+  "tags": []
+}

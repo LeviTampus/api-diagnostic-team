@@ -101,7 +101,6 @@ eval/             scenario set + scorecard
 sql/              Supabase schema (pgvector, audit, memory)
 workflows/        sanitized n8n exports (re-select credentials on import)
 scripts/          sanitizer for workflow exports
-docs/superpowers/ spec + implementation plan
 ```
 
 ## How to run
